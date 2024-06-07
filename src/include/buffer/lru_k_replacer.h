@@ -12,13 +12,13 @@
 
 #pragma once
 
+#include <chrono>
 #include <limits>
 #include <list>
 #include <mutex>  // NOLINT
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <chrono>
 
 #include "common/config.h"
 #include "common/macros.h"
@@ -29,7 +29,7 @@ enum class AccessType { Unknown = 0, Lookup, Scan, Index };
 
 class LRUKNode {
  public:
- /**
+  /**
    * @brief New LRUKnode(Constructor)
    *
    * @param frame_id frame_id of the frame which is accessed.
@@ -49,7 +49,7 @@ class LRUKNode {
 
   /**
    * @brief set this current frame as evictable or not.
-   * 
+   *
    * @param set_evictable whether the given frame is evictable or not
    */
   void SetEvictableStatus(bool set_evictable);
