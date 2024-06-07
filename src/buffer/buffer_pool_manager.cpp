@@ -48,16 +48,18 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
     free_list_.pop_front();
 
     // Allocate the page and assign this free frame the current page
-    AllocatePage();
     page_table_.insert({next_page_id_, cur_frame});
     pages_[cur_frame].page_id_ = next_page_id_;
+    AllocatePage();
 
     // Record the access time
     replacer_->RecordAccess(cur_frame);
 
-    // Release the latch and return the current page
-    *page_id = next_page_id_;
-    latch_.unlock();
+    // Pin the page
+    pages_[cur_frame].pin_count_++;
+
+    // return the current page
+    *page_id = pages_[cur_frame].page_id_;
     return &pages_[cur_frame];    
   } else {
     // get the evicted frame from LKU Replacer
@@ -65,8 +67,6 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
 
     if(!replacer_->Evict(&cur_frame)) {
       page_id=nullptr;
-      // Release the latch
-      latch_.unlock();
       return nullptr;
     } else {
         // write this page to disk if its dirty
@@ -86,22 +86,22 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
         pages_[cur_frame].pin_count_ = 0;
 
         // Allocate the page and assign this free frame the current page
-        AllocatePage();
         page_table_.insert({next_page_id_, cur_frame});
         pages_[cur_frame].page_id_ = next_page_id_;
+        AllocatePage();
+
+        // Pin the page
+        pages_[cur_frame].pin_count_++;
 
         // Record the access time
         replacer_->RecordAccess(cur_frame);
 
-        // Release the latch and return the current page
-        *page_id = next_page_id_;
-        latch_.unlock();
+        // return the current page
+        *page_id = pages_[cur_frame].page_id_;
         return &pages_[cur_frame];
     }
   }
 
-  // Release the latch
-  latch_.unlock();
   return nullptr;
 }
 
@@ -113,12 +113,8 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   if(page_table_.count(page_id)>0) {
     frame_id_t cur_frame = page_table_[page_id];
 
-    // Record the access time
-    replacer_->RecordAccess(cur_frame);
-
-    // Release the latch
-    latch_.unlock();  
-
+    // Record the access time and return current page
+    replacer_->RecordAccess(cur_frame);  
     return &pages_[cur_frame];  
   } else {
     if(free_list_.size()>0) {
@@ -127,23 +123,30 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
       free_list_.pop_front();
 
       // Allocate the page and assign this free frame the current page
-      AllocatePage();
-      page_table_.insert({next_page_id_, cur_frame});
-      pages_[cur_frame].page_id_ = next_page_id_;
+      page_table_.insert({page_id, cur_frame});
+      pages_[cur_frame].page_id_ = page_id;
+
+      // read the data from disk if its already persisited
+      if(page_id < next_page_id_) {
+        auto promise1 = disk_scheduler_->CreatePromise();
+        auto future1 = promise1.get_future();
+        disk_scheduler_->Schedule({/*is_write=*/false, pages_[cur_frame].data_, /*page_id=*/pages_[cur_frame].page_id_, std::move(promise1)});
+        future1.get();
+      }
+
+      // Pin the page
+      pages_[cur_frame].pin_count_++;
 
       // Record the access time
       replacer_->RecordAccess(cur_frame);
 
-      // Release the latch and return the current page
-      latch_.unlock();
+      // return the current page
       return &pages_[cur_frame];
     } else {
       // get the evicted frame from LKU Replacer
       frame_id_t cur_frame;
 
       if(!replacer_->Evict(&cur_frame)) {
-        // Release the latch
-        latch_.unlock();
         return nullptr;
       } else {
           // write this page to disk if its dirty
@@ -163,9 +166,19 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
           pages_[cur_frame].pin_count_ = 0;
 
           // Allocate the page and assign this free frame the current page
-          AllocatePage();
-          page_table_.insert({next_page_id_, cur_frame});
-          pages_[cur_frame].page_id_ = next_page_id_;
+          page_table_.insert({page_id, cur_frame});
+          pages_[cur_frame].page_id_ = page_id;
+
+          // read the data from disk if its already persisited
+          if(page_id < next_page_id_) {
+            auto promise1 = disk_scheduler_->CreatePromise();
+            auto future1 = promise1.get_future();
+            disk_scheduler_->Schedule({/*is_write=*/false, pages_[cur_frame].data_, /*page_id=*/pages_[cur_frame].page_id_, std::move(promise1)});
+            future1.get();
+          }
+
+          // Pin the page
+          pages_[cur_frame].pin_count_++;
 
           // read this page from disk
           auto promise1 = disk_scheduler_->CreatePromise();
@@ -176,15 +189,11 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
           // Record the access time
           replacer_->RecordAccess(cur_frame);
 
-          // Release the latch and return the current page
-          latch_.unlock();
+          // return the current page
           return &pages_[cur_frame];
        }
     }
   }
-
-  // Release the latch
-  latch_.unlock();
 
   return nullptr;
 }
@@ -198,10 +207,7 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
 
      // return false if the pin value of this page is 0
      if(pages_[cur_frame].pin_count_ <= 0) {
-      // Release the latch
-      latch_.unlock();
 
-      // if the page_id is not present in the buffer pool
       return false;      
      } else {
         pages_[cur_frame].pin_count_--;
@@ -210,28 +216,20 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
         if(pages_[cur_frame].pin_count_ == 0) {
           replacer_->SetEvictable(cur_frame, true);
         }
-        // set the page as dirtly if the dirty flag is trues
+        // set the page as dirtly if the dirty flag is true
         if(is_dirty) {
           pages_[cur_frame].is_dirty_ = true;
         }
 
-        // Release the latch
-        latch_.unlock();
-
         return true;
      }
   }
-  // Release the latch
-  latch_.unlock();
 
   // if the page_id is not present in the buffer pool
   return false;
 }
 
 auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { 
-  // abort the process if page_id is invalid
-  BUSTUB_ASSERT(page_id == INVALID_PAGE_ID, "frameid invalid");
-
   // Take the mutex latch for the record operation
   std::unique_lock<std::mutex> lk(latch_);
 
@@ -239,23 +237,16 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
      frame_id_t cur_frame = page_table_[page_id];
 
     // write the page to disk even if its not diry
-    if(pages_[cur_frame].is_dirty_) {
-      auto promise1 = disk_scheduler_->CreatePromise();
-      auto future1 = promise1.get_future();
-      disk_scheduler_->Schedule({/*is_write=*/true, pages_[cur_frame].data_, /*page_id=*/pages_[cur_frame].page_id_, std::move(promise1)});
-      future1.get();
-    }    
+    auto promise1 = disk_scheduler_->CreatePromise();
+    auto future1 = promise1.get_future();
+    disk_scheduler_->Schedule({/*is_write=*/true, pages_[cur_frame].data_, /*page_id=*/pages_[cur_frame].page_id_, std::move(promise1)});
+    future1.get();
 
     pages_[cur_frame].is_dirty_ = false; 
-
-    // Release the latch
-    latch_.unlock();
 
     return true;
    }
 
-  // Release the latch
-  latch_.unlock();
 
   // if the page_id is not present in the buffer pool
   return false;
@@ -274,9 +265,6 @@ void BufferPoolManager::FlushAllPages() {
 
     pages_[pair.second].is_dirty_ = false;
   }
-
-  // Release the latch
-  latch_.unlock();
 }
 
 auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { 
@@ -288,8 +276,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
 
       // return false if the page is pinned
       if(pages_[cur_frame].pin_count_ > 0){
-         // Release the latch
-         latch_.unlock();
         
          return false;
       }
@@ -307,10 +293,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
       // Deallocate page
       DeallocatePage(page_id);
    }
-
-
-  // Release the latch
-  latch_.unlock();
 
   // return true if the page_id to be deleted is not there in the buffer pool or return true when page is available too
   return true; 

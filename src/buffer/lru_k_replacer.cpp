@@ -88,8 +88,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
   if(curr_size_==0) {
     *frame_id = -1;
-    // Release the latch
-    latch_.unlock();
     return false; 
   } else {
     size_t curtime = std::numeric_limits<size_t>::max();
@@ -131,16 +129,13 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     remnode->SetEvictableStatus(false);
     *frame_id = curframe;
 
-    // Release the latch
-    latch_.unlock();
-
     return true;
   }
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   // abort the process if frameid is invalid, i.e greater than the replacer size
-  BUSTUB_ASSERT(frame_id>replacer_size_, "frameid invalid, greater than the replacer size");
+  BUSTUB_ASSERT((size_t)frame_id<replacer_size_, "frameid invalid, greater than the replacer size");
 
   // Take the mutex latch for the record operation
   std::unique_lock<std::mutex> lk(latch_);
@@ -155,24 +150,18 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
     cur_node->AddAcceesTime();
   } else {
     LRUKNode * cur_node = new LRUKNode(frame_id,k_);
-
-    if(k_>1)
-      inf_replacer_.insert(frame_id);
     
     cur_node->AddAcceesTime();
     node_store_.insert({frame_id,cur_node});
   }
-
-  // Release the latch
-  latch_.unlock();
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   // abort the process if frameid is invalid, i.e greater than the replacer size
-  BUSTUB_ASSERT(frame_id>replacer_size_, "frameid invalid, greater than the replacer size");
+  BUSTUB_ASSERT((size_t)frame_id<replacer_size_, "frameid invalid, greater than the replacer size");
 
   // abort the process if frameid to set as evicatable or not is not accessed by the replacer before
-  BUSTUB_ASSERT(node_store_.count(frame_id) == 0, "frameid is not accessed before");
+  BUSTUB_ASSERT(node_store_.count(frame_id) != 0, "frameid is not accessed before");
 
   // Take the mutex latch for the record operation
   std::unique_lock<std::mutex> lk(latch_);
@@ -200,9 +189,10 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
       auto index = replacer_.find(frame_id);
       replacer_.erase(index);
 
-      index = inf_replacer_.find(frame_id);
-      if(*index > 0)
+      if(cur_node->GetNumAceessTime() < k_) {
+        index = inf_replacer_.find(frame_id);
         inf_replacer_.erase(index);
+      }
 
       cur_node->SetEvictableStatus(false);
       curr_size_--;
@@ -211,14 +201,11 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
       BUSTUB_ASSERT(true, "frameid which is supposed to be set as not evictable is not already evictable.");
     }
   }
-
-  // Release the latch
-  latch_.unlock();
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
   // abort the process if frameid is invalid, i.e greater than the replacer size
-  BUSTUB_ASSERT(frame_id>replacer_size_, "frameid invalid, greater than the replacer size");
+  BUSTUB_ASSERT((size_t)frame_id<replacer_size_, "frameid invalid, greater than the replacer size");
 
   // Take the mutex latch for the record operation
   std::unique_lock<std::mutex> lk(latch_);
@@ -238,12 +225,9 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
     cur_node->ClearAcceesTime();
     cur_node->SetEvictableStatus(false);
   }
-
-  // Release the latch
-  latch_.unlock(); 
 }
 
-inline auto LRUKReplacer::Size() -> size_t { 
+auto LRUKReplacer::Size() -> size_t { 
   return curr_size_; 
 }
 
