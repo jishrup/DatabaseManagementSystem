@@ -37,13 +37,13 @@ auto ExtendibleHTableDirectoryPage::HashToBucketIndex(uint32_t hash) const -> ui
 }
 
 auto ExtendibleHTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) const -> page_id_t { 
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
 
   return bucket_page_ids_[bucket_idx];
 }
 
 void ExtendibleHTableDirectoryPage::SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id) {
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
 
   bucket_page_ids_[bucket_idx] =  bucket_page_id;
 }
@@ -61,7 +61,7 @@ auto ExtendibleHTableDirectoryPage::GetGlobalDepthMask() const -> uint32_t {
 }
 
 auto ExtendibleHTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) const -> uint32_t {
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
 
   return (1 << local_depths_[bucket_idx]) - 1;
 }
@@ -104,26 +104,26 @@ auto ExtendibleHTableDirectoryPage::MaxSize() const -> uint32_t {
 }
 
 auto ExtendibleHTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) const -> uint32_t { 
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
 
   return local_depths_[bucket_idx];  
 }
 
 void ExtendibleHTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t local_depth) {
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
   
   local_depths_[bucket_idx] = local_depth; 
 }
 
 void ExtendibleHTableDirectoryPage::IncrLocalDepth(uint32_t bucket_idx) {
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
   BUSTUB_ASSERT(local_depths_[bucket_idx] + 1 == max_depth_, "Cant increment local depth for this bucket_idx");
 
   local_depths_[bucket_idx]++;
 }
 
 void ExtendibleHTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {
-  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx > Size(), "Invalid bucket_idx");
   BUSTUB_ASSERT(local_depths_[bucket_idx] - 1 == -1, "Cant decrement local depth for this bucket_idx");
 
   local_depths_[bucket_idx]--;
