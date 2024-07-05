@@ -17,10 +17,9 @@
 namespace bustub {
 
 void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
-  BUSTUB_ASSERT(max_depth < HTABLE_HEADER_MAX_DEPTH, "Invalid max_depth");
+  BUSTUB_ASSERT(max_depth <= HTABLE_HEADER_MAX_DEPTH, "Invalid max_depth");
 
   max_depth_ = max_depth;
-  global_depth_ = max_depth;
 
   for(uint32_t i = 0; i < HTABLE_HEADER_ARRAY_SIZE; i++) {
     directory_page_ids_[i] = INVALID_PAGE_ID;
@@ -29,19 +28,19 @@ void ExtendibleHTableHeaderPage::Init(uint32_t max_depth) {
 
 auto ExtendibleHTableHeaderPage::HashToDirectoryIndex(uint32_t hash) const -> uint32_t { 
   // Create a mask to isolate the top global_depth_ bits
-  uint32_t mask = (1 << global_depth_) - 1;  
+  uint32_t mask = (1 << max_depth_) - 1;  
 
-  return (hash >> (32 - global_depth_)) & mask;
+  return (hash >> (32 - max_depth_)) & mask;
 }
 
 auto ExtendibleHTableHeaderPage::GetDirectoryPageId(uint32_t directory_idx) const -> uint32_t {
-  BUSTUB_ASSERT(directory_idx < (1 << global_depth_), "Invalid directory_idx");
+  BUSTUB_ASSERT(directory_idx < (1 << max_depth_), "Invalid directory_idx");
 
   return directory_page_ids_[directory_idx];
 }
 
 void ExtendibleHTableHeaderPage::SetDirectoryPageId(uint32_t directory_idx, page_id_t directory_page_id) {
-  BUSTUB_ASSERT(directory_idx < (1 << global_depth_), "Invalid directory_idx");
+  BUSTUB_ASSERT(directory_idx < (1 << max_depth_), "Invalid directory_idx");
 
   directory_page_ids_[directory_idx] = directory_page_id;
 }

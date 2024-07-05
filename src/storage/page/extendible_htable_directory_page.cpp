@@ -79,7 +79,7 @@ void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
 
   global_depth_++;
 
-  if(global_depth_ > 1) {
+  if(global_depth_ >= 1) {
     int val = 1 << (global_depth_ - 1);
 
     for(int i = val; i < 1 << global_depth_; i++) {
@@ -92,7 +92,7 @@ void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
 void ExtendibleHTableDirectoryPage::DecrGlobalDepth() {
   global_depth_--;
 
-  BUSTUB_ASSERT(global_depth_ > 0, "global depth cannot be less than 0");
+  BUSTUB_ASSERT(global_depth_ >= 0, "global depth cannot be less than 0");
 }
 
 auto ExtendibleHTableDirectoryPage::CanShrink() -> bool { 
@@ -116,6 +116,12 @@ auto ExtendibleHTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) const -> 
   BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
 
   return local_depths_[bucket_idx];  
+}
+
+auto ExtendibleHTableDirectoryPage::GetSplitIndex(uint32_t bucket_idx) const -> uint32_t { 
+  BUSTUB_ASSERT(bucket_idx < Size(), "Invalid bucket_idx");
+
+  return bucket_idx | (1  << GetLocalDepth(bucket_idx));  
 }
 
 void ExtendibleHTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t local_depth) {

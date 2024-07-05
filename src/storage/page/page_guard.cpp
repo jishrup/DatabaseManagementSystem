@@ -180,7 +180,7 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
     Drop();
 
     // Move the latches from that pointer to this pointer
-    guard_ = std::move(that.guard_);
+    //guard_ = std::move(that.guard_);
 
     // copy the contents(ownership) of the that pointer to this pointer
     this->guard_.bpm_ = that.guard_.bpm_;
