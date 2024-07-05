@@ -70,29 +70,29 @@ auto ExtendibleHTableBucketPage<K, V, KC>::Remove(const K &key, const KC &cmp) -
 
 template <typename K, typename V, typename KC>
 void ExtendibleHTableBucketPage<K, V, KC>::RemoveAt(uint32_t bucket_idx) {
-  for(uint32_t i = bucket_idx; i < size_ - 1; i++) {
-    array_[i] = array_[i + 1];
-  }
+  BUSTUB_ASSERT(bucket_idx < size_, "Invalid bucket_idx");
+
+  array_[bucket_idx] = array_[size_ - 1]; 
   size_--;
 }
 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::KeyAt(uint32_t bucket_idx) const -> K {
-  BUSTUB_ASSERT(bucket_idx > size_, "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx < size_, "Invalid bucket_idx");
 
   return array_[bucket_idx].first;
 }
 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::ValueAt(uint32_t bucket_idx) const -> V {
-  BUSTUB_ASSERT(bucket_idx > size_, "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx < size_, "Invalid bucket_idx");
 
   return array_[bucket_idx].second;
 }
 
 template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::EntryAt(uint32_t bucket_idx) const -> const std::pair<K, V> & {
-  BUSTUB_ASSERT(bucket_idx > size_, "Invalid bucket_idx");
+  BUSTUB_ASSERT(bucket_idx < size_, "Invalid bucket_idx");
 
   return array_[bucket_idx];
 }

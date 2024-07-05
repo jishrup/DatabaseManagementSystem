@@ -79,7 +79,6 @@ class ExtendibleHTableHeaderPage {
  private:
   page_id_t directory_page_ids_[HTABLE_HEADER_ARRAY_SIZE];
   uint32_t max_depth_;
-  uint32_t global_depth_;
 };
 
 static_assert(sizeof(page_id_t) == 4);

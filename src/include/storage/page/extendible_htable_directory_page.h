@@ -154,6 +154,14 @@ class ExtendibleHTableDirectoryPage {
    */
   auto GetLocalDepth(uint32_t bucket_idx) const -> uint32_t;
 
+    /**
+   * Gets the local depth of the bucket at bucket_idx
+   *
+   * @param bucket_idx the bucket index to split
+   * @return index where the new bucket will be added
+   */
+  auto GetSplitIndex(uint32_t bucket_idx) const -> uint32_t;
+
   /**
    * Set the local depth of the bucket at bucket_idx to local_depth
    *
