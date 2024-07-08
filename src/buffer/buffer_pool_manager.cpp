@@ -305,12 +305,36 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { 
+  Page *page = FetchPage(page_id);
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+  BUSTUB_ASSERT(page != nullptr, "there is no free page available");
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+  return BasicPageGuard(this, page);
+}
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { 
+  Page *page = FetchPage(page_id);
+
+  BUSTUB_ASSERT(page != nullptr, "there is no free page available");
+
+  return ReadPageGuard(this, page);
+}
+
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { 
+  Page *page = FetchPage(page_id);
+
+  BUSTUB_ASSERT(page != nullptr, "there is no free page available");
+
+  return WritePageGuard(this, page);
+ }
+
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
+  Page *page = NewPage(page_id);
+
+  BUSTUB_ASSERT(page != nullptr, "there is no free page available");
+
+  return BasicPageGuard(this, page);
+ }
 
 }  // namespace bustub
