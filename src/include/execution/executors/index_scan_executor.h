@@ -46,7 +46,7 @@ class IndexScanExecutor : public AbstractExecutor {
   const IndexScanPlanNode *plan_;
 
   /** The index to scan. */
-  std::shared_ptr<Index> index_;
+  IndexInfo * index_;
 
   /** The key for scanning the index. */
   Tuple key_;

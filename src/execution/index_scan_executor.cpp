@@ -17,21 +17,20 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 
 void IndexScanExecutor::Init() { 
    // Obtain the index from the catalog
-  auto index_metadata = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
-  index_ = std::make_unique<Index>(index_metadata->index_);
+  index_ = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
 
   // Create a key for the index scan from the predicate keys
   if (!plan_->pred_keys_.empty()) {
     // Create a dummy Tuple to use for evaluation
-    Schema key_schema = *index_->GetKeySchema();
+    Schema key_schema = *index_->index_->GetKeySchema();
     Tuple dummy_tuple;
     auto expr = plan_->pred_keys_.front();
     auto value = expr->Evaluate(&dummy_tuple, key_schema);  // Provide a valid Schema
-    key_ = Tuple({value}, index_->GetKeySchema());
+    key_ = Tuple({value}, index_->index_->GetKeySchema());
   }
 
   // Perform the index scan to get RIDs
-  index_->ScanKey(key_, &rids_, exec_ctx_->GetTransaction());
+  index_->index_->ScanKey(key_, &rids_, exec_ctx_->GetTransaction());
 
   // Set up the iterator for the results
   index_iter_ = rids_.begin();
@@ -47,8 +46,7 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   index_iter_++;
 
   // Fetch the tuple from the table heap
-  auto table_heap = std::make_unique<TableHeap>(exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_)->table_);
-  auto tupleinfo = table_heap->GetTuple(*rid);
+  auto tupleinfo = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_)->table_->GetTuple(*rid);
   *tuple = tupleinfo.second;
 
   return true;    

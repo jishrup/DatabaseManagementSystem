@@ -22,7 +22,6 @@ void SeqScanExecutor::Init() {
 
   // Initialize the unique_ptr with a new TableIterator
   table_iter_ = std::make_unique<TableIterator>(table_info_->table_->MakeIterator());
-
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
