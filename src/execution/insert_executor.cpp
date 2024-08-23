@@ -26,6 +26,7 @@ void InsertExecutor::Init() {
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { 
+     //std::cout<<"Insert"<<std::endl;
     int inserted_count = 0;
 
     // Iterate over tuples produced by the child executor
@@ -50,7 +51,11 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto output_schema = GetOutputSchema();
     std::vector<Value> values;
     values.emplace_back(Value(TypeId::INTEGER, inserted_count));
-    *tuple = Tuple(values, &output_schema);
+    auto tup = Tuple(values, &output_schema);
+    *tuple = tup;
+
+    //std::cout<<"see"<<tup.GetValue(&output_schema, 0).GetAs<int>()<<std::endl;
+    //std::cout<<"see"<<tuple->GetValue(&output_schema, 0).GetAs<int>()<<std::endl;
 
     // Only return true once with the number of inserted rows
     return inserted_count > 0;
